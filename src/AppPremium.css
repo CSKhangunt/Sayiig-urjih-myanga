@@ -1,0 +1,11 @@
+:root { --purple-bg: #100b19; --purple-panel: #251936; --purple-accent: #8b5cf6; --purple-highlight: #a78bfa; }
+body { background: radial-gradient(circle at 50% -20%, #2a1943 0, transparent 42%), var(--purple-bg); }
+.app-shell { width: min(1440px, calc(100% - 48px)); }
+.topbar { border-color: rgba(167,139,250,.14); }
+.brand-mark { background: linear-gradient(135deg, #a78bfa, #7040b4); color: #fff; box-shadow: 0 8px 22px rgba(139,92,246,.22); }
+.gold-button { background: linear-gradient(135deg, #9b6cff, #7040b4); color: #fff; border-radius: 9px; }
+.board-section { border-color: rgba(167,139,250,.14); }
+.board { background: #191126; border-color: #48345e; box-shadow: 0 25px 60px rgba(3,1,9,.45), inset 0 0 0 5px #251936; }
+.board-corner, .property-tile { background: linear-gradient(145deg, #302044, #251936); border-color: rgba(167,139,250,.18); }
+.board-center { background: radial-gradient(circle, rgba(89,60,126,.38), transparent 60%); }
+.theme-card, .empty-player, .player-row { border-radius: 10px; }

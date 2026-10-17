@@ -1,0 +1,20 @@
+.lobby-shell, .store-shell { background: radial-gradient(circle at 50% 18%, #2a1943 0, #120c1d 42%, #100b19 100%); }
+.lobby-nav { height: 84px; border-bottom: 1px solid rgba(167,139,250,.12); }
+.dice-logo { color: #a78bfa; filter: drop-shadow(0 16px 28px rgba(139,92,246,.3)); }
+.logo-wordmark { text-shadow: 0 10px 35px rgba(139,92,246,.2); }
+.logo-wordmark span { color: #a78bfa; }
+.play-form { width: min(100%, 360px); }
+.play-form input { border-radius: 11px; border-color: #48345e; background: #251936; padding: 16px; }
+.avatar { transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+.avatar:hover, .avatar.active { transform: translateY(-2px); }
+.play-button, .create-room-button { border-radius: 11px; background: linear-gradient(135deg, #9b6cff, #7040b4); box-shadow: 0 14px 32px rgba(112,64,180,.3); }
+.play-button:hover, .create-room-button:hover { filter: brightness(1.1); transform: translateY(-2px); }
+.lobby-actions button { border-radius: 9px; border: 1px solid rgba(167,139,250,.18); background: #302044; }
+.settings-modal, .rooms-modal { border-radius: 14px; background: #191126; border-color: #48345e; }
+.store-layout { width: min(1280px, calc(100% - 56px)); grid-template-columns: 220px minmax(0, 1fr); }
+.store-item { border-radius: 13px; background: linear-gradient(145deg, #302044, #251936); border-color: rgba(167,139,250,.16); }
+.store-art { height: 155px; border-radius: 10px; background: linear-gradient(145deg, #211531, #130d20); }
+.store-buy { min-height: 36px; border-radius: 8px; background: #3a2852; }
+.store-buy:hover { background: linear-gradient(135deg, #9b6cff, #7040b4); }
+.store-notice { border-radius: 12px; background: #302044; }
+@media (max-width: 800px) { .store-layout { width: min(100% - 32px, 680px); } }

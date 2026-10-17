@@ -1,0 +1,26 @@
+:root {
+  --text: #b7b8c9;
+  --text-h: #f6f2e9;
+  --bg: #07111f;
+  --border: rgba(255, 255, 255, 0.11);
+  --gold: #f2c66d;
+  --sans: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --heading: Georgia, 'Times New Roman', serif;
+  font: 16px/145% var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: radial-gradient(circle at 50% -20%, #19304a 0, transparent 42%), var(--bg);
+}
+
+#root {
+  min-height: 100svh;
+}

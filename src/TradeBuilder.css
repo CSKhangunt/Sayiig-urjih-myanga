@@ -1,0 +1,23 @@
+.trade-builder { width: min(720px, 100%); }
+.trade-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.trade-panels h3 { margin: 4px 0 8px; color: #f2c66d; font-size: 12px; }
+.trade-asset-list { display: grid; gap: 5px; max-height: 190px; overflow: auto; padding: 4px; border: 1px solid #39294d; border-radius: 5px; background: #130d1d; }
+.trade-asset { display: flex; align-items: center; gap: 7px; border: 1px solid transparent; border-radius: 4px; padding: 7px; color: #d9cbe4; background: #21152f; font-size: 10px; text-align: left; }
+.trade-asset span { width: 8px; height: 8px; border-radius: 50%; }
+.trade-asset img { width: 32px; height: 20px; object-fit: cover; border-radius: 3px; }
+.trade-asset b { margin-left: auto; color: #a895ae; font-size: 9px; }
+.trade-asset.selected { border-color: #bd8cf1; background: #38244f; }
+.trade-card-select { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; color: #a895ae; font-size: 9px; }
+.trade-card-select b { width: 100%; }
+.trade-card-select button { border: 1px solid #49315d; border-radius: 4px; padding: 5px; color: #d8b9f2; background: #21152f; font-size: 9px; }
+.trade-card-select button.selected { border-color: #f2c66d; color: #f2c66d; }
+.trade-summary { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; padding: 10px; border-radius: 5px; color: #c8b6d4; background: #130d1d; font-size: 10px; }
+@media (max-width: 600px) { .trade-panels { grid-template-columns: 1fr; } .trade-summary { display: grid; } }
+.incoming-trade-overlay { position: fixed; right: 24px; bottom: 24px; z-index: 21; display: grid; gap: 10px; width: min(390px, calc(100vw - 48px)); }
+.incoming-trade-modal { width: auto; padding: 20px; }
+.trade-offer-line { margin: 8px 0; color: #c8b6d4; font-size: 11px; }
+.trade-detail { display: grid; gap: 4px; margin: 8px 0; padding: 9px; border: 1px solid #39294d; border-radius: 5px; color: #c8b6d4; background: #130d1d; font-size: 10px; }
+.trade-detail strong { color: #f2c66d; font-size: 11px; }
+.trade-detail span { overflow-wrap: anywhere; }
+.trade-response-actions { display: flex; gap: 6px; margin-top: 14px; }.trade-response-actions button { flex: 1; justify-content: center; }
+.game-notice { width: fit-content; max-width: 90%; margin: 10px auto 0; padding: 8px 12px; border: 1px solid #806044; border-radius: 4px; background: #302219; color: #f2c66d; font-size: 11px; }

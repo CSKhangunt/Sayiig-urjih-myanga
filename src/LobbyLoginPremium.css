@@ -1,0 +1,15 @@
+.login-modal { width: min(440px, calc(100vw - 32px)); padding: 38px 34px 28px; border: 1px solid rgba(167,139,250,.32); border-radius: 20px; background: radial-gradient(circle at 50% 0, rgba(139,92,246,.2), transparent 40%), linear-gradient(145deg, #302044, #191126); box-shadow: 0 30px 100px rgba(4,1,12,.65); }
+.login-mark { width: 60px; height: 60px; margin-bottom: 16px; border-radius: 18px; color: #fff; background: linear-gradient(135deg, #9b6cff, #542b91); box-shadow: 0 12px 30px rgba(139,92,246,.32); }
+.login-kicker { color: #c4adf2; font-weight: 700; }
+.login-title { font-size: clamp(24px, 5vw, 30px); letter-spacing: -.04em; }
+.login-lead { font-size: 12px; line-height: 1.6; }
+.social-login { min-height: 45px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; box-shadow: 0 5px 14px rgba(0,0,0,.12); transition: transform .18s ease, filter .18s ease, box-shadow .18s ease; }
+.social-login:hover { transform: translateY(-2px); box-shadow: 0 9px 20px rgba(0,0,0,.2); }
+.social-login span { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 7px; background: rgba(255,255,255,.16); }
+.login-modal .info-input { color: #d8cbe6; font-size: 12px; }
+.login-modal .info-input input { min-height: 45px; margin-top: 7px; border-radius: 10px; padding: 12px 13px; font-size: 13px; transition: border-color .18s ease, box-shadow .18s ease; }
+.login-modal .info-input input:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,.14); }
+.login-modal .create-room-button { min-height: 46px; border-radius: 10px; font-size: 13px; }
+.register-link { padding: 8px; border-radius: 7px; }
+.register-link:focus-visible, .social-login:focus-visible { outline: 2px solid #a78bfa; outline-offset: 3px; }
+.login-notice { border-radius: 10px; color: #f2eaff; background: rgba(139,92,246,.16); }
