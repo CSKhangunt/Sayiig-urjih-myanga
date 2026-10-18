@@ -1,0 +1,9 @@
+.lobby-shell > .social-panel { display: none; }
+.account-tools { position: fixed; right: 18px; bottom: 18px; z-index: 20; display: flex; gap: 8px; padding: 8px; border: 1px solid rgba(167,139,250,.3); border-radius: 14px; background: rgba(24,15,36,.94); box-shadow: 0 12px 30px rgba(0,0,0,.3); }
+.tool-button { border: 1px solid #594171; border-radius: 9px; padding: 10px 13px; background: #2d1d43; color: #eee4f5; cursor: pointer; }
+.tool-button:hover, .tool-button.active { background: #7040b4; border-color: #a78bfa; }
+.account-modal-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; background: rgba(7,4,12,.72); }
+.account-modal { position: relative; width: min(820px,100%); max-height: 88vh; overflow: auto; border: 1px solid #694d86; border-radius: 18px; background: #160e22; box-shadow: 0 25px 70px rgba(0,0,0,.5); }
+.account-modal .social-panel { width: auto; margin: 0; border: 0; border-radius: 18px; background: transparent; }
+.account-modal-close { position: absolute; right: 14px; top: 12px; z-index: 2; width: 34px; height: 34px; border: 1px solid #725092; border-radius: 50%; background: #2d1d43; color: #fff; font-size: 24px; line-height: 1; cursor: pointer; }
+@media (max-width: 600px) { .account-tools { right: 10px; bottom: 10px; left: 10px; justify-content: space-between; } .tool-button { padding: 9px 10px; font-size: 12px; } .account-modal-backdrop { padding: 10px; } }
