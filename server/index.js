@@ -19,6 +19,8 @@ import { auctionBid, auctionPass, buildProperty, buyProperty, cancelTrade, count
 import { normalizeRoomSettings, validateRoomCapacity, validateRoomSettings } from './roomSettings.js'
 
 const app = express()
+// Render terminates TLS and forwards the original client IP in X-Forwarded-For.
+app.set('trust proxy', 1)
 const { port, origins: allowedOrigins } = serverEnvironment(process.env)
 const allowedAvatars = ['🦅', '🐎', '🐺', '🦌', '🐫']
 const roomCodePattern = /^[A-Z0-9]{6}$/
