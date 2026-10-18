@@ -53,7 +53,7 @@ friendSchema.index({ pairKey: 1 }, { unique: true, partialFilterExpression: { pa
 
 const roomSchema = new mongoose.Schema({
   code: { type: String, required: true, unique: true, index: true },
-  inviteToken: { type: String, required: true, unique: true, index: true, default: () => crypto.randomBytes(18).toString('hex') },
+  inviteToken: { type: String, required: true, default: () => crypto.randomBytes(18).toString('hex') },
   hostSessionHash: { type: String, required: true },
   players: [{
     sessionHash: { type: String, required: true },
@@ -79,6 +79,7 @@ const roomSchema = new mongoose.Schema({
   },
   status: { type: String, enum: ['lobby', 'playing', 'finished'], default: 'lobby' },
 }, { timestamps: true })
+roomSchema.index({ inviteToken: 1 }, { unique: true, partialFilterExpression: { inviteToken: { $type: 'string' } } })
 
 const GuestSession = mongoose.model('GuestSession', guestSessionSchema)
 const Profile = mongoose.model('Profile', profileSchema)
@@ -616,6 +617,12 @@ async function startServer() {
   try {
     for (const [modelName, model] of Object.entries(mongoose.models)) {
       try {
+        if (modelName === 'Room') {
+          await model.collection.dropIndex('inviteToken_1').catch((error) => {
+            if (error?.code !== 27 && error?.codeName !== 'IndexNotFound') throw error
+          })
+          await model.collection.createIndex({ inviteToken: 1 }, { unique: true, partialFilterExpression: { inviteToken: { $type: 'string' } }, name: 'inviteToken_1' })
+        }
         await model.init()
       } catch (error) {
         console.error(`MongoDB model initialization failed: ${modelName}`, safeMongoError(error))
