@@ -61,7 +61,8 @@ export default function GameRoom({ room, player, onLeave }) {
     socket.on('disconnect', (reason) => { if (reason === 'io server disconnect') socket.connect() })
     socket.on('game:error', (payload) => setError(payload.message))
     socket.on('chat:message', (message) => setMessages((current) => [...current.slice(-30), message]))
-    socket.on('connect_error', (connectError) => setError(connectError.message || 'Өрөөтэй холбогдож чадсангүй.'))
+    socket.on('connect', () => setError(''))
+    socket.on('connect_error', (connectError) => setError(`Өрөөтэй холбогдож чадсангүй: ${connectError.message || 'Socket холболтын алдаа'}`))
     return () => socket.disconnect()
   }, [room.code])
 
@@ -163,7 +164,7 @@ export default function GameRoom({ room, player, onLeave }) {
     send('game:roll')
   }
   const currentPlayer = game?.players.find((item) => item.name === player.displayName)
-  if (!game) return <main className="game-loading">Өрөөтэй холбогдож байна...</main>
+  if (!game) return <main className="game-loading"><div className="game-connection-card"><div className="game-loading-spinner" />{error ? <><h2>Өрөөнд холбогдож чадсангүй</h2><p>{error}</p><small>Socket URL: {SOCKET_URL}</small><div><button className="primary-action" onClick={() => window.location.reload()}>Дахин оролдох</button><button className="secondary-action" onClick={onLeave}>Буцах</button></div></> : <><h2>Өрөөтэй холбогдож байна...</h2><p>Тоглоомын самбарыг бэлдэж байна.</p></>}</div></main>
   const tile = currentPlayer ? tiles[currentPlayer.position] : tiles[0]
   const canBuy = Boolean(game?.lastRoll?.playerName === player.displayName && ['property', 'transport', 'utility'].includes(tile.type) && !game.properties[tile.id] && !game.auction)
   const auctionTile = game.auction ? tiles[game.auction.propertyId] : null
