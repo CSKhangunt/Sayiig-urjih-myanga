@@ -596,7 +596,48 @@ const shutdown = async (signal) => {
 process.once('SIGTERM', () => shutdown('SIGTERM'))
 process.once('SIGINT', () => shutdown('SIGINT'))
 
+function safeMongoError(error) {
+  const message = String(error?.message || 'Unknown MongoDB error')
+    .replace(/mongodb(?:\+srv)?:\/\/[^\s]+/gi, '[redacted MongoDB URI]')
+    .replace(/(password|passwd|pwd|secret|token)=([^\s&]+)/gi, '$1=[redacted]')
+  return { name: error?.name || 'Error', code: error?.code ?? 'none', message }
+}
+
+async function startServer() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, { maxPoolSize: 10, minPoolSize: 1, serverSelectionTimeoutMS: 10000 })
+  } catch (error) {
+    console.error('MongoDB connection failed:', safeMongoError(error))
+    process.exitCode = 1
+    clearInterval(gameTimer)
+    return
+  }
+
+  try {
+    for (const [modelName, model] of Object.entries(mongoose.models)) {
+      try {
+        await model.init()
+      } catch (error) {
+        console.error(`MongoDB model initialization failed: ${modelName}`, safeMongoError(error))
+        process.exitCode = 1
+        clearInterval(gameTimer)
+        return
+      }
+    }
+  } catch (error) {
+    console.error('MongoDB model initialization failed:', safeMongoError(error))
+    process.exitCode = 1
+    clearInterval(gameTimer)
+    return
+  }
+
+  console.log('MongoDB connection and model initialization succeeded.')
+  if (!process.env.VERCEL) httpServer.listen(port, () => console.log(`Тэрбумтан backend :${port}`))
+}
+
 if (process.env.MONGODB_URI) {
+  void startServer()
+} else if (false) {
   mongoose.connect(process.env.MONGODB_URI, { maxPoolSize: 10, minPoolSize: 1, serverSelectionTimeoutMS: 10000 })
     .catch((error) => { console.error(`MongoDB connection details: ${error?.name || 'Error'}: ${error?.message || 'unknown'} (code: ${error?.code || 'none'})`); throw error })
     .then(async () => { await Promise.all(Object.values(mongoose.models).map((model) => model.init())); console.log('MongoDB холболт амжилттай.'); if (!process.env.VERCEL) httpServer.listen(port, () => console.log(`Тэрбумтан backend :${port}`)) })
