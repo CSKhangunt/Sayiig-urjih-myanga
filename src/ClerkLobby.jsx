@@ -7,6 +7,16 @@ import ProfilePanel from './ProfilePanel.jsx'
 import FriendsPanel from './FriendsPanel.jsx'
 import './AccountTools.css'
 
+function RoomSignIn() {
+  const [redirect, setRedirect] = useState(() => window.location.pathname + window.location.search)
+  useEffect(() => {
+    const update = () => setRedirect(window.location.pathname + window.location.search)
+    window.addEventListener('popstate', update)
+    return () => window.removeEventListener('popstate', update)
+  }, [])
+  return <SignInButton mode="modal" forceRedirectUrl={redirect} signUpForceRedirectUrl={redirect}><button type="button"><span>Нэвтрэх</span></button></SignInButton>
+}
+
 export default function ClerkLobby() {
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const { user } = useUser()
@@ -20,7 +30,7 @@ export default function ClerkLobby() {
     return () => { cancelled = true; localStorage.removeItem('guestToken'); sessionStorage.removeItem('accountToken') }
   }, [getToken, isLoaded, isSignedIn, user])
   const current = isSignedIn && account?.userId === user?.id ? account : null
-  const clerkLogin = isLoaded && !isSignedIn ? <SignInButton mode="modal"><button type="button"><span>Нэвтрэх</span></button></SignInButton> : null
+  const clerkLogin = isLoaded && !isSignedIn ? <RoomSignIn /> : null
   const closePanel = () => setPanel(null)
   return <>
     {current?.error && <p role="alert" className="game-error">{current.error}</p>}

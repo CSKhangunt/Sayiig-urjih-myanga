@@ -368,10 +368,10 @@ app.post('/api/rooms/:code/join', requireDatabase, async (request, response) => 
   const code = request.params.code.toUpperCase()
   let room = await Room.findOne({ code })
   if (!room) return response.status(404).json({ error: 'Ийм өрөө олдсонгүй.' })
-  if (room.status !== 'lobby') return response.status(409).json({ error: 'Энэ тоглоом аль хэдийн эхэлсэн байна.' })
+  const alreadyJoined = room.players.some((player) => player.sessionHash === session.tokenHash)
+  if (!alreadyJoined && room.status !== 'lobby') return response.status(409).json({ error: 'Энэ тоглоом аль хэдийн эхэлсэн байна.' })
   const inviteToken = request.body?.inviteToken || request.query?.invite
   if (room.settings.privateRoom && inviteToken !== room.inviteToken) return response.status(403).json({ error: 'Хувийн өрөөнд нэгдэхийн тулд хүчинтэй урилга шаардлагатай.' })
-  const alreadyJoined = room.players.some((player) => player.sessionHash === session.tokenHash)
   if (!alreadyJoined && room.players.length >= room.settings.maxPlayers) return response.status(409).json({ error: 'Өрөө дүүрсэн байна.' })
   if (!alreadyJoined) {
     const joined = await Room.findOneAndUpdate({ _id: room._id, status: 'lobby', 'players.sessionHash': { $ne: session.tokenHash }, ...(room.settings.privateRoom ? { inviteToken } : {}), $expr: { $lt: [{ $size: '$players' }, '$settings.maxPlayers'] } }, { $push: { players: { sessionHash: session.tokenHash, displayName: session.displayName, avatar: session.avatar, balance: room.settings.startingCash } } }, { returnDocument: 'after' })

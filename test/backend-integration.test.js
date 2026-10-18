@@ -87,6 +87,8 @@ test('real backend integrates signed auth, profiles, friendship, private invitat
     publicSocket.disconnect()
     const room = await request('alice', '/api/rooms', 'POST', { privateRoom: true, maxPlayers: 2, startingCash: 1500000, randomOrder: false })
     const forbiddenSocket = socket('bob', room)
+    const invalidInvite = await fetch(`${base}/api/rooms/${room.code}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessions.bob.token}`, 'X-Clerk-Token': tokens.bob }, body: JSON.stringify({ inviteToken: 'invalid' }) })
+    assert.equal(invalidInvite.status, 403)
     const forbidden = once(forbiddenSocket, 'connect_error'); forbiddenSocket.connect(); await forbidden; forbiddenSocket.disconnect()
     const notification = once(socialBob, 'invitation:received')
     const sent = await request('alice', '/api/invitations', 'POST', { recipientId: 'bob', roomId: room.code })
@@ -106,6 +108,9 @@ test('real backend integrates signed auth, profiles, friendship, private invitat
     const profile = await request('alice', '/api/profile')
     assert.equal(profile.profile.displayName, 'Саруул')
     const started = once(second, 'game:state'); first.emit('game:start'); assert.equal((await started)[0].status, 'playing')
+    const resumedRoom = await request('alice', `/api/rooms/${room.code}/join`, 'POST', { inviteToken: room.inviteToken })
+    assert.equal(resumedRoom.code, room.code)
+    assert.equal(resumedRoom.status, 'playing')
     const firstRoll = once(first, 'game:state'), secondRoll = once(second, 'game:state')
     first.emit('game:roll')
     const rolled = (await firstRoll)[0]

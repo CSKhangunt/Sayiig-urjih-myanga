@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Coins, Dice5, Gamepad2, KeyRound, LayoutGrid, Lock, LogIn, Map, Palette, Plus, Settings2, ShoppingCart, Sparkles, UserCircle, Users, Volume2, VolumeX, X, Zap } from 'lucide-react'
 import GameRoom from './GameRoom.jsx'
 import './Lobby.css'
@@ -7,6 +7,7 @@ import './LobbyLoginPremium.css'
 import { apiUrl, apiFetch as fetch } from './config.js'
 import FriendsPanel from './FriendsPanel.jsx'
 import ProfilePanel from './ProfilePanel.jsx'
+import { readRoomRoute, roomPath, navigateRoom, joinRoomOnce } from './roomRouting.js'
 
 const avatars = ['🦅', '🐎', '🐺', '🦌', '🐫']
 const defaultSettings = {
@@ -36,9 +37,49 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
   const [muted, setMuted] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [route, setRoute] = useState(() => readRoomRoute(window.location))
+  const routeVersion = useRef(0)
+  const creationPending = useRef(false)
 
   useEffect(() => {
-    const joined = (event) => { setRoom(event.detail); setInfoModal(null) }
+    const changed = () => { routeVersion.current += 1; setRoute(readRoomRoute(window.location)); setRoom(null); setError(''); setShowRooms(false) }
+    window.addEventListener('popstate', changed)
+    return () => window.removeEventListener('popstate', changed)
+  }, [])
+
+  const enterRoom = (nextRoom) => {
+    navigateRoom(roomPath(nextRoom))
+    setRoom(nextRoom)
+    setShowRooms(false)
+    setInfoModal(null)
+  }
+
+  useEffect(() => {
+    if (!route || !clerkAccount?.token || room?.code === route.code) return
+    let active = true
+    setBusy(true)
+    setError('')
+    const key = JSON.stringify([clerkAccount.token, route.code, route.inviteToken])
+    joinRoomOnce(key, async () => {
+      const response = await fetch(apiUrl(`/api/rooms/${route.code}/join`), {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${clerkAccount.token}` },
+        body: JSON.stringify({ inviteToken: route.inviteToken }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Өрөөнд нэгдэж чадсангүй.')
+      return result
+    }).then((result) => {
+      if (!active) return
+      // Canonicalize the URL without starting a second navigation/join.
+      window.history.replaceState({}, '', roomPath(result))
+      setRoom(result)
+    }).catch((failure) => { if (active) setError(failure.message) })
+      .finally(() => { if (active) setBusy(false) })
+    return () => { active = false }
+  }, [route, clerkAccount?.token, room?.code])
+
+  useEffect(() => {
+    const joined = (event) => { navigateRoom(roomPath(event.detail)); setRoom(event.detail); setInfoModal(null) }
     window.addEventListener('game:invitation-joined', joined)
     return () => window.removeEventListener('game:invitation-joined', joined)
   }, [])
@@ -51,11 +92,14 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
   }
 
   const createRoom = async (privateRoom) => {
+    if (creationPending.current || busy) return
     if (!clerkAccount && nickname.trim().length < 2) {
       setError('Эхлээд 2-18 тэмдэгттэй тоглогчийн нэр оруулна уу.')
       return
     }
     setError('')
+    creationPending.current = true
+    const version = routeVersion.current
     setBusy(true)
     try {
       const token = await createSession()
@@ -66,11 +110,13 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Өрөө үүссэнгүй.')
-      setRoom(result)
+      if (version !== routeVersion.current) return
+      enterRoom(result)
       setShowSettings(false)
     } catch (requestError) {
       setError(requestError.message)
     } finally {
+      creationPending.current = false
       setBusy(false)
     }
   }
@@ -86,26 +132,9 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
     }
   }
 
-  const joinRoom = async (code) => {
-    if (!clerkAccount && nickname.trim().length < 2) {
-      setError('Өрөөнд орохын өмнө тоглогчийн нэрээ оруулна уу.')
-      setShowRooms(false)
-      return
-    }
-    setBusy(true)
-    try {
-      const token = await createSession()
-      const inviteToken = new URLSearchParams(window.location.search).get('invite') || undefined
-      const response = await fetch(apiUrl(`/api/rooms/${code}/join`), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ inviteToken }) })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Өрөөнд нэгдэж чадсангүй.')
-      setRoom(result)
-      setShowRooms(false)
-    } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setBusy(false)
-    }
+  const joinRoom = (code) => {
+    navigateRoom(`/room/${code.toUpperCase()}`)
+    setShowRooms(false)
   }
 
   const updateSetting = (key, value) => setSettings((current) => { const next = { ...current, [key]: value }; localStorage.setItem('terbumtanRoomSettings', JSON.stringify(next)); return next })
@@ -114,7 +143,7 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
     loadRooms()
   }
 
-  if (room) return <GameRoom room={room} player={room.player} onLeave={() => setRoom(null)} />
+  if (room) return <GameRoom key={room.code} room={room} player={room.player} onLeave={() => { navigateRoom('/'); setRoom(null) }} />
   if (infoModal === 'store') return <StoreView onBack={() => setInfoModal(null)} onLogin={() => setInfoModal('login')} clerkLogin={clerkLogin} />
 
   return (
@@ -125,6 +154,7 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
       </header>
 
       <section className="lobby-hero">
+        {route && <section className="room-toast" aria-live="polite"><div><strong>Өрөө {route.code}</strong><small>{clerkAccount ? (busy ? 'Өрөөнд нэгдэж байна…' : 'Доорх мэдээллийг шалгана уу.') : 'Өрөөнд орохын тулд нэвтэрнэ үү.'}</small></div>{!clerkAccount && clerkLogin}<button onClick={() => navigateRoom('/')}>Буцах</button></section>}
         <div className="dice-logo"><Dice5 size={88} strokeWidth={1.8} /></div>
         <div className="logo-wordmark">ТЭРБУМТАН<span>.io</span></div>
         <p>Эдийн засгийг удирд.</p>
@@ -134,10 +164,9 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
           <button className="play-button" onClick={() => createRoom(false)} disabled={busy}><Gamepad2 size={25} /> {busy ? 'Холбогдож байна...' : 'Тоглох'}</button>
         </div>
         <div className="lobby-actions"><button onClick={openRooms}><Users size={15} /> Бүх нээлттэй өрөө</button><button onClick={() => createRoom(true)} disabled={busy}><KeyRound size={15} /> Хувийн өрөө үүсгэх</button></div>
-        {error && <p className="lobby-error">{error}</p>}
+        {error && <div role="alert" className="lobby-error"><p>{error}</p>{route && clerkAccount && <button disabled={busy} onClick={() => setRoute(readRoomRoute(window.location))}>Дахин оролдох</button>}</div>}
       </section>
 
-      {room && <section className="room-toast"><div><span className="room-badge">ӨРӨӨ</span><strong>{room.code}</strong><small>{room.settings?.privateRoom ? 'Зөвхөн холбоосоор нэвтэрнэ' : 'Нээлттэй өрөө'}</small></div><button onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/room/${room.code}`)}>Холбоос хуулах</button></section>}
       <footer className="lobby-footer"><span>© 2026 Тэрбумтан Онлайн</span><span>Зочин горим · Ахиц түр хадгалагдана</span></footer>
 
       {clerkAccount && <><ProfilePanel getToken={clerkGetToken} /><FriendsPanel account={clerkAccount} getToken={clerkGetToken} /></>}
