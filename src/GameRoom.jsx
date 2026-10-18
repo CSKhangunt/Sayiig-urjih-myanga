@@ -57,7 +57,7 @@ export default function GameRoom({ room, player, onLeave }) {
   useEffect(() => {
     const socket = io(SOCKET_URL, { auth: async (callback) => { try { callback({ token: localStorage.getItem('guestToken'), clerkToken: await getClerkToken() }) } catch { callback({}) } }, query: { roomCode: room.code }, reconnection: true, reconnectionAttempts: Infinity, timeout: 10000 })
     socketRef.current = socket
-    const stateTimeout = window.setTimeout(() => setError('Серверээс тоглоомын төлөв ирсэнгүй. Өрөөний код эсвэл нэвтрэлтийн сесс хүчингүй болсон байж болзошгүй.'), 12000)
+    const stateTimeout = window.setTimeout(() => setError('Серверээс тоглоомын төлөв ирсэнгүй. Render сервер сэрж байгаа бол 30 секунд хүлээгээд дахин оролдоно уу.'), 30000)
     socket.on('game:state', (state) => { window.clearTimeout(stateTimeout); setGame(state) })
     socket.on('disconnect', (reason) => { if (reason === 'io server disconnect') socket.connect() })
     socket.on('game:error', (payload) => setError(payload.message))

@@ -346,15 +346,23 @@ app.post('/api/rooms', requireDatabase, async (request, response) => {
 
 app.get('/api/rooms', requireDatabase, async (request, response) => {
   const candidates = await Room.find({ status: 'lobby', 'settings.privateRoom': false, $expr: { $lt: [{ $size: '$players' }, '$settings.maxPlayers'] } })
-    .select('code players.sessionHash players.displayName players.avatar players.connected settings.maxPlayers status')
+    .select('code hostSessionHash players.sessionHash players.displayName players.avatar players.connected settings.maxPlayers status')
     .sort({ createdAt: -1 })
     .limit(100)
   const sessionHashes = candidates.flatMap((room) => room.players.map((player) => player.sessionHash))
   const activeSessions = await GuestSession.find({ tokenHash: { $in: sessionHashes }, expiresAt: { $gt: new Date() } }).select('tokenHash').lean()
   const activeHashes = new Set(activeSessions.map((session) => session.tokenHash))
-  const rooms = candidates.filter((room) => room.players.some((player) => activeHashes.has(player.sessionHash))).slice(0, 12)
-  const emptyRoomIds = candidates.filter((room) => !room.players.some((player) => activeHashes.has(player.sessionHash))).map((room) => room._id)
-  if (emptyRoomIds.length) await Room.deleteMany({ _id: { $in: emptyRoomIds } })
+  const activeRooms = candidates.filter((room) => room.players.some((player) => activeHashes.has(player.sessionHash)))
+  const latestByHost = new Set()
+  const duplicateRoomIds = []
+  for (const room of activeRooms) {
+    if (latestByHost.has(room.hostSessionHash)) duplicateRoomIds.push(room._id)
+    else latestByHost.add(room.hostSessionHash)
+  }
+  const rooms = activeRooms.filter((room) => !duplicateRoomIds.some((id) => String(id) === String(room._id))).slice(0, 12)
+  const emptyRoomIds = candidates.filter((room) => !activeRooms.includes(room)).map((room) => room._id)
+  const staleRoomIds = [...emptyRoomIds, ...duplicateRoomIds]
+  if (staleRoomIds.length) await Room.deleteMany({ _id: { $in: staleRoomIds } })
   return response.json({ rooms })
 })
 
