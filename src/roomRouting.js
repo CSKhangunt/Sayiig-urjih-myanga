@@ -1,4 +1,5 @@
-export const PRODUCTION_ORIGIN = 'https://sayiig-urjih-myanga.vercel.app'
+import { PRODUCTION_ORIGIN } from '../shared/deployment.js'
+export { PRODUCTION_ORIGIN }
 
 export function readRoomRoute(location) {
   const match = /^\/room\/([a-z0-9]{6})\/?$/i.exec(location.pathname)

@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { io } from 'socket.io-client'
+import { readRoomRoute, roomShareUrl } from '../src/roomRouting.js'
 
 test('real backend integrates signed auth, profiles, friendship, private invitations, skins and reconnect', { timeout: 60000 }, async () => {
   const replica = await MongoMemoryReplSet.create({ replSet: { count: 1 } })
@@ -15,7 +16,7 @@ test('real backend integrates signed auth, profiles, friendship, private invitat
   const port = reservation.address().port
   await new Promise((resolve) => reservation.close(resolve))
   const base = `http://127.0.0.1:${port}`
-  const origin = 'http://localhost:5173'
+  const origin = 'https://sayiig-urjih-myanga.vercel.app'
   const tokens = {}
   for (const id of ['alice', 'bob']) {
     const now = Math.floor(Date.now() / 1000)
@@ -50,6 +51,8 @@ test('real backend integrates signed auth, profiles, friendship, private invitat
     assert.equal(unauthenticated.status, 401)
     for (const id of ['alice', 'bob']) sessions[id] = await request(id, '/api/clerk-session', 'POST', { displayName: id, avatar: '🦅' })
     assert.deepEqual(sessions.alice.profile.skins, ['steppe-free'])
+    assert.notEqual(sessions.alice.token, sessions.bob.token)
+    assert.notEqual(sessions.alice.clerkId, sessions.bob.clerkId)
     const restored = await request('alice', '/api/clerk-session', 'POST', { displayName: 'ignored', avatar: '🐺' })
     assert.equal(restored.token, sessions.alice.token)
     assert.equal(restored.profile.displayName, 'alice')
@@ -85,6 +88,18 @@ test('real backend integrates signed auth, profiles, friendship, private invitat
     const refreshed = once(publicSocket, 'game:state'); publicSocket.connect(); await refreshed
     assert.ok((await request('alice', '/api/rooms')).rooms.some((item) => item.code === publicRoom.code))
     publicSocket.disconnect()
+    const linkRoom = await request('alice', '/api/rooms', 'POST', { privateRoom: true, maxPlayers: 2, startingCash: 1500000 })
+    const inviteRoute = readRoomRoute(new URL(roomShareUrl(linkRoom)))
+    const friendRoom = await request('bob', `/api/rooms/${inviteRoute.code}/join`, 'POST', { inviteToken: inviteRoute.inviteToken })
+    assert.equal(friendRoom.code, linkRoom.code)
+    const hostBrowser = socket('alice', linkRoom), friendBrowser = socket('bob', friendRoom)
+    const hostInitial = once(hostBrowser, 'game:state'), friendInitial = once(friendBrowser, 'game:state')
+    hostBrowser.connect(); friendBrowser.connect()
+    const [hostView, friendView] = await Promise.all([hostInitial, friendInitial])
+    assert.equal(hostView[0].players.length, 2)
+    assert.deepEqual(hostView[0].players.map((player) => player.id), friendView[0].players.map((player) => player.id))
+    await request('bob', `/api/rooms/${inviteRoute.code}/join`, 'POST', { inviteToken: inviteRoute.inviteToken })
+    hostBrowser.disconnect(); friendBrowser.disconnect()
     const room = await request('alice', '/api/rooms', 'POST', { privateRoom: true, maxPlayers: 2, startingCash: 1500000, randomOrder: false })
     const forbiddenSocket = socket('bob', room)
     const invalidInvite = await fetch(`${base}/api/rooms/${room.code}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessions.bob.token}`, 'X-Clerk-Token': tokens.bob }, body: JSON.stringify({ inviteToken: 'invalid' }) })

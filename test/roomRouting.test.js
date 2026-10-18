@@ -1,6 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readRoomRoute, roomPath, roomShareUrl, navigateRoom, joinRoomOnce } from '../src/roomRouting.js'
+import { productionRedirect } from '../shared/deployment.js'
+
+test('preview redirects retain private invitation code, token and hash', () => {
+  const preview = new URL('https://sayiig-urjih-myanga-preview-cskhangunt.vercel.app/room/ABC123?invite=secret#join')
+  assert.equal(productionRedirect(preview), 'https://sayiig-urjih-myanga.vercel.app/room/ABC123?invite=secret#join')
+  assert.equal(productionRedirect(new URL('https://sayiig-urjih-myanga.vercel.app/room/ABC123?invite=secret')), null)
+  assert.equal(productionRedirect(new URL('http://localhost:5173')), null)
+})
 
 test('public and private invitations always use the production domain and encode tokens', () => {
   assert.equal(roomShareUrl({ code: 'abc123' }), 'https://sayiig-urjih-myanga.vercel.app/room/ABC123')
