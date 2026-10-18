@@ -345,10 +345,12 @@ app.post('/api/rooms', requireDatabase, async (request, response) => {
 })
 
 app.get('/api/rooms', requireDatabase, async (request, response) => {
-  const rooms = await Room.find({ status: 'lobby', 'settings.privateRoom': false, $expr: { $lt: [{ $size: '$players' }, '$settings.maxPlayers'] } })
+  const staleBefore = new Date(Date.now() - 60 * 60 * 1000)
+  await Room.deleteMany({ status: 'lobby', updatedAt: { $lt: staleBefore } })
+  const rooms = await Room.find({ status: 'lobby', 'settings.privateRoom': false, updatedAt: { $gte: staleBefore }, $expr: { $lt: [{ $size: '$players' }, '$settings.maxPlayers'] } })
     .select('code players.displayName players.avatar players.connected settings.maxPlayers status')
     .sort({ createdAt: -1 })
-    .limit(30)
+    .limit(12)
   return response.json({ rooms })
 })
 
