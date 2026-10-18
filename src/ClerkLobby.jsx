@@ -6,6 +6,7 @@ import InvitationsPanel from './InvitationsPanel.jsx'
 import ProfilePanel from './ProfilePanel.jsx'
 import FriendsPanel from './FriendsPanel.jsx'
 import './AccountTools.css'
+import { readApiResponse, NETWORK_ERROR } from './apiErrors.js'
 
 function RoomSignIn() {
   const [redirect, setRedirect] = useState(() => window.location.pathname + window.location.search)
@@ -24,10 +25,15 @@ export default function ClerkLobby() {
   const [panel, setPanel] = useState(null)
   useEffect(() => { setTokenProvider(isSignedIn ? getToken : null); return () => setTokenProvider(null) }, [getToken, isSignedIn])
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !user) { localStorage.removeItem('guestToken'); sessionStorage.removeItem('accountToken'); setAccount(null); return }
+    if (!isLoaded) return
+    if (!isSignedIn) { localStorage.removeItem('guestToken'); sessionStorage.removeItem('accountToken'); setAccount(null); return }
+    if (!user) return
     let cancelled = false
-    getToken().then((token) => fetch(apiUrl('/api/clerk-session'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ displayName: user.fullName || user.username || 'Тоглогч', avatar: '🦁' }) })).then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Профайл ачаалж чадсангүй.'); return data }).then((data) => { if (cancelled || !data.token) return; localStorage.setItem('guestToken', data.token); sessionStorage.setItem('accountToken', data.token); setAccount({ ...data, userId: user.id }) }).catch((error) => { if (!cancelled) setAccount({ userId: user.id, error: error.message }) })
-    return () => { cancelled = true; localStorage.removeItem('guestToken'); sessionStorage.removeItem('accountToken') }
+    getToken().then((token) => {
+      if (!token) throw new Error('HTTP 401: Нэвтрэлтийн token бэлэн болсонгүй. Дахин нэвтэрнэ үү.')
+      return fetch(apiUrl('/api/clerk-session'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ displayName: user.fullName || user.username || 'Тоглогч', avatar: '🦅' }) }).catch(() => { throw new Error(NETWORK_ERROR) })
+    }).then(readApiResponse).then((data) => { if (cancelled) return; if (!data.token) throw new Error('HTTP 502: Тоглоомын session ирсэнгүй.'); localStorage.setItem('guestToken', data.token); sessionStorage.setItem('accountToken', data.token); setAccount({ ...data, userId: user.id }) }).catch((error) => { if (!cancelled) setAccount({ userId: user.id, error: error.message }) })
+    return () => { cancelled = true }
   }, [getToken, isLoaded, isSignedIn, user])
   const current = isSignedIn && account?.userId === user?.id ? account : null
   const clerkLogin = isLoaded && !isSignedIn ? <RoomSignIn /> : null

@@ -1,3 +1,4 @@
+import { NETWORK_ERROR } from './apiErrors.js'
 const configuredApiUrl = import.meta.env.VITE_API_URL || 'https://sayiig-urjih-myanga.onrender.com'
 export const API_URL = configuredApiUrl.replace(/\/$/, '')
 export const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || API_URL || window.location.origin).replace(/\/$/, '')
@@ -12,6 +13,6 @@ export const apiFetch = async (url, options = {}) => {
   try {
     return await window.fetch(url, { ...options, headers })
   } catch {
-    throw new Error('Сервертэй холбогдож чадсангүй. Backend Render дээр ассан эсэхийг шалгана уу.')
+    throw new Error(NETWORK_ERROR)
   }
 }

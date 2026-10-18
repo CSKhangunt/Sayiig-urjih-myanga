@@ -8,6 +8,7 @@ import { apiUrl, apiFetch as fetch } from './config.js'
 import FriendsPanel from './FriendsPanel.jsx'
 import ProfilePanel from './ProfilePanel.jsx'
 import { readRoomRoute, roomPath, navigateRoom, joinRoomOnce } from './roomRouting.js'
+import { readApiResponse } from './apiErrors.js'
 
 const avatars = ['🦅', '🐎', '🐺', '🦌', '🐫']
 const defaultSettings = {
@@ -62,11 +63,10 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
     const key = JSON.stringify([clerkAccount.token, route.code, route.inviteToken])
     joinRoomOnce(key, async () => {
       const response = await fetch(apiUrl(`/api/rooms/${route.code}/join`), {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${clerkAccount.token}` },
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${clerkAccount.token}`, 'X-Clerk-Token': await clerkGetToken() },
         body: JSON.stringify({ inviteToken: route.inviteToken }),
       })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Өрөөнд нэгдэж чадсангүй.')
+      const result = await readApiResponse(response)
       return result
     }).then((result) => {
       if (!active) return
@@ -76,7 +76,7 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
     }).catch((failure) => { if (active) setError(failure.message) })
       .finally(() => { if (active) setBusy(false) })
     return () => { active = false }
-  }, [route, clerkAccount?.token, room?.code])
+  }, [route, clerkAccount?.token, room?.code, clerkGetToken])
 
   useEffect(() => {
     const joined = (event) => { navigateRoom(roomPath(event.detail)); setRoom(event.detail); setInfoModal(null) }
@@ -108,8 +108,7 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...settings, privateRoom, startingCash: settings.startingCash * 1000 }),
       })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Өрөө үүссэнгүй.')
+      const result = await readApiResponse(response)
       if (version !== routeVersion.current) return
       enterRoom(result)
       setShowSettings(false)
@@ -143,7 +142,7 @@ export default function Lobby({ clerkAccount = null, userButton = null, clerkLog
     loadRooms()
   }
 
-  if (room) return <GameRoom key={room.code} room={room} player={room.player} onLeave={() => { navigateRoom('/'); setRoom(null) }} />
+  if (room) return <GameRoom key={room.code} room={room} player={room.player} getToken={clerkGetToken} onLeave={() => { navigateRoom('/'); setRoom(null) }} />
   if (infoModal === 'store') return <StoreView onBack={() => setInfoModal(null)} onLogin={() => setInfoModal('login')} clerkLogin={clerkLogin} />
 
   return (
