@@ -1,4 +1,4 @@
-const configuredApiUrl = import.meta.env.VITE_API_URL || 'https://tergumbtan-backend.onrender.com'
+const configuredApiUrl = import.meta.env.VITE_API_URL || 'https://sayiig-urjih-myanga.onrender.com'
 export const API_URL = configuredApiUrl.replace(/\/$/, '')
 export const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || API_URL || window.location.origin).replace(/\/$/, '')
 export const apiUrl = (path) => `${API_URL}${path}`
