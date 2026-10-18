@@ -95,6 +95,7 @@ const Room = mongoose.model('Room', roomSchema)
 const httpServer = http.createServer(app)
 const io = new Server(httpServer, { cors: { origin: allowedOrigins, credentials: true }, allowRequest: (request, callback) => callback(null, !request.headers.origin || allowedOrigins.includes(request.headers.origin)), pingInterval: 25000, pingTimeout: 20000, connectTimeout: 10000 })
 const games = new Map()
+const gameConnections = new Map()
 const social = io.of('/social')
 const authentication = createAuthentication({ verifyToken, options: { secretKey: process.env.CLERK_SECRET_KEY, jwtKey: process.env.CLERK_JWT_KEY, authorizedParties: allowedOrigins }, blocked: (id) => deletion.blocked(id), findSession: (token) => GuestSession.findOne({ tokenHash: hashToken(token), expiresAt: { $gt: new Date() } }), findRoom: (code) => Room.findOne({ code }) })
 const deletion = createDeletionService({ mongoose,
@@ -351,7 +352,7 @@ app.get('/api/rooms', requireDatabase, async (request, response) => {
     .limit(100)
   const sessionHashes = candidates.flatMap((room) => room.players.map((player) => player.sessionHash))
   const activeSessions = await GuestSession.find({ tokenHash: { $in: sessionHashes }, expiresAt: { $gt: new Date() } }).select('tokenHash').lean()
-  const activeHashes = new Set(activeSessions.map((session) => session.tokenHash))
+  const activeHashes = new Set(activeSessions.map((session) => session.tokenHash).filter((hash) => gameConnections.has(hash)))
   const activeRooms = candidates.filter((room) => room.players.some((player) => activeHashes.has(player.sessionHash)))
   const latestByHost = new Set()
   const duplicateRoomIds = []
@@ -462,6 +463,7 @@ io.on('connection', async (socket) => {
   expiry.unref?.()
   socket.once('disconnect', () => clearTimeout(expiry))
   const { roomCode, sessionHash } = socket.data
+  gameConnections.set(sessionHash, (gameConnections.get(sessionHash) || 0) + 1)
   const game = await getGame(roomCode)
   if (!game) return socket.disconnect(true)
   const room = await Room.findOne({ code: roomCode })
@@ -554,6 +556,9 @@ io.on('connection', async (socket) => {
     io.to(roomCode).emit('chat:message', { name: socket.data.displayName, text, at: new Date().toISOString() })
   })
   socket.on('disconnect', () => {
+    const connectionCount = (gameConnections.get(sessionHash) || 1) - 1
+    if (connectionCount > 0) gameConnections.set(sessionHash, connectionCount)
+    else gameConnections.delete(sessionHash)
     const otherConnection = [...io.sockets.sockets.values()].some((item) => item.id !== socket.id && item.data.sessionHash === sessionHash && item.data.roomCode === roomCode)
     if (otherConnection) return
     const disconnectedPlayer = game.players.find((item) => item.id === sessionHash)
