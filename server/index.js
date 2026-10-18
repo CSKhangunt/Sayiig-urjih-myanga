@@ -598,7 +598,7 @@ process.once('SIGINT', () => shutdown('SIGINT'))
 
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI, { maxPoolSize: 10, minPoolSize: 1, serverSelectionTimeoutMS: 10000 })
-    .catch((error) => { console.error('MongoDB connection details:', { name: error?.name, message: error?.message, code: error?.code, reason: error?.reason?.message }); throw error })
+    .catch((error) => { console.error(`MongoDB connection details: ${error?.name || 'Error'}: ${error?.message || 'unknown'} (code: ${error?.code || 'none'})`); throw error })
     .then(async () => { await Promise.all(Object.values(mongoose.models).map((model) => model.init())); console.log('MongoDB холболт амжилттай.'); if (!process.env.VERCEL) httpServer.listen(port, () => console.log(`Тэрбумтан backend :${port}`)) })
     .catch(() => { console.error('MongoDB холболт амжилтгүй.'); process.exitCode = 1; clearInterval(gameTimer) })
 } else {
