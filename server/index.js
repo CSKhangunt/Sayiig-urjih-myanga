@@ -436,12 +436,14 @@ io.use(async (socket, next) => {
     socket.data.roomCode = roomCode
     socket.data.displayName = session.displayName
     next()
-  } catch {
+  } catch (error) {
+    console.error('Game socket authentication failed:', { name: error?.name || 'Error', code: error?.code ?? 'none', message: error?.message || 'unknown' })
     next(new Error('Өрөөтэй холбогдож чадсангүй.'))
   }
 })
 
 io.on('connection', async (socket) => {
+  console.log('Game socket connected:', { roomCode: socket.data.roomCode, hasSession: Boolean(socket.data.sessionHash) })
   const expiry = setTimeout(() => socket.disconnect(true), Math.max(0, socket.data.expiresAt - Date.now()))
   expiry.unref?.()
   socket.once('disconnect', () => clearTimeout(expiry))
