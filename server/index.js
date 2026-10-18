@@ -345,12 +345,16 @@ app.post('/api/rooms', requireDatabase, async (request, response) => {
 })
 
 app.get('/api/rooms', requireDatabase, async (request, response) => {
-  const staleBefore = new Date(Date.now() - 60 * 60 * 1000)
-  await Room.deleteMany({ status: 'lobby', updatedAt: { $lt: staleBefore } })
-  const rooms = await Room.find({ status: 'lobby', 'settings.privateRoom': false, updatedAt: { $gte: staleBefore }, $expr: { $lt: [{ $size: '$players' }, '$settings.maxPlayers'] } })
-    .select('code players.displayName players.avatar players.connected settings.maxPlayers status')
+  const candidates = await Room.find({ status: 'lobby', 'settings.privateRoom': false, $expr: { $lt: [{ $size: '$players' }, '$settings.maxPlayers'] } })
+    .select('code players.sessionHash players.displayName players.avatar players.connected settings.maxPlayers status')
     .sort({ createdAt: -1 })
-    .limit(12)
+    .limit(100)
+  const sessionHashes = candidates.flatMap((room) => room.players.map((player) => player.sessionHash))
+  const activeSessions = await GuestSession.find({ tokenHash: { $in: sessionHashes }, expiresAt: { $gt: new Date() } }).select('tokenHash').lean()
+  const activeHashes = new Set(activeSessions.map((session) => session.tokenHash))
+  const rooms = candidates.filter((room) => room.players.some((player) => activeHashes.has(player.sessionHash))).slice(0, 12)
+  const emptyRoomIds = candidates.filter((room) => !room.players.some((player) => activeHashes.has(player.sessionHash))).map((room) => room._id)
+  if (emptyRoomIds.length) await Room.deleteMany({ _id: { $in: emptyRoomIds } })
   return response.json({ rooms })
 })
 
