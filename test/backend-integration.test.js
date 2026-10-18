@@ -34,7 +34,7 @@ test('real backend integrates signed auth, profiles, friendship, private invitat
     assert.ok(response.ok, `${method} ${path}: ${response.status} ${JSON.stringify(data)}`)
     return data
   }
-  function socket(id, room) { const connection = io(base, { autoConnect: false, query: { roomCode: room.code }, auth: { token: sessions[id].token, clerkToken: tokens[id] }, reconnection: false }); sockets.push(connection); return connection }
+  function socket(id, room) { const connection = io(base, { forceNew: true, autoConnect: false, query: { roomCode: room.code }, auth: { token: sessions[id].token, clerkToken: tokens[id] }, reconnection: false }); sockets.push(connection); return connection }
   try {
     let ready = false
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -66,6 +66,25 @@ test('real backend integrates signed auth, profiles, friendship, private invitat
     const online = once(socialAlice, 'presence:changed')
     const bobConnected = once(socialBob, 'connect'); socialBob.connect(); await bobConnected
     assert.deepEqual((await online)[0], { clerkId: 'bob', online: true })
+    const publicRoom = await request('alice', '/api/rooms', 'POST', { privateRoom: false, maxPlayers: 4, startingCash: 1500000 })
+    assert.equal((await request('alice', '/api/rooms')).rooms.some((item) => item.code === publicRoom.code), false)
+    // Listing before the first socket connects must never delete a newly created room.
+    await request('alice', `/api/rooms/${publicRoom.code}`)
+    const publicSocket = socket('alice', publicRoom)
+    const publicState = once(publicSocket, 'game:state'); publicSocket.connect(); await publicState
+    let listed = (await request('alice', '/api/rooms')).rooms.find((item) => item.code === publicRoom.code)
+    assert.ok(listed)
+    assert.equal(listed.players[0].sessionHash, undefined)
+    await request('bob', `/api/rooms/${publicRoom.code}/join`, 'POST', {})
+    listed = (await request('alice', '/api/rooms')).rooms.find((item) => item.code === publicRoom.code)
+    assert.equal(listed.players.length, 2)
+    const publicDisconnected = once(publicSocket, 'disconnect'); publicSocket.disconnect(); await publicDisconnected
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    assert.equal((await request('alice', '/api/rooms')).rooms.some((item) => item.code === publicRoom.code), false)
+    await request('alice', `/api/rooms/${publicRoom.code}`)
+    const refreshed = once(publicSocket, 'game:state'); publicSocket.connect(); await refreshed
+    assert.ok((await request('alice', '/api/rooms')).rooms.some((item) => item.code === publicRoom.code))
+    publicSocket.disconnect()
     const room = await request('alice', '/api/rooms', 'POST', { privateRoom: true, maxPlayers: 2, startingCash: 1500000, randomOrder: false })
     const forbiddenSocket = socket('bob', room)
     const forbidden = once(forbiddenSocket, 'connect_error'); forbiddenSocket.connect(); await forbidden; forbiddenSocket.disconnect()

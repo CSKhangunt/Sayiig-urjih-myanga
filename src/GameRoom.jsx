@@ -55,7 +55,7 @@ export default function GameRoom({ room, player, onLeave }) {
   const animationSnapshot = useRef([])
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { auth: async (callback) => { try { callback({ token: localStorage.getItem('guestToken'), clerkToken: await getClerkToken() }) } catch { callback({}) } }, query: { roomCode: room.code }, reconnection: true, reconnectionAttempts: Infinity, timeout: 10000 })
+    const socket = io(SOCKET_URL, { forceNew: true, autoConnect: false, auth: async (callback) => { try { callback({ token: localStorage.getItem('guestToken'), clerkToken: await getClerkToken() }) } catch { callback({}) } }, query: { roomCode: room.code }, reconnection: true, reconnectionAttempts: Infinity, timeout: 10000 })
     socketRef.current = socket
     const stateTimeout = window.setTimeout(() => setError('Серверээс тоглоомын төлөв ирсэнгүй. Render сервер сэрж байгаа бол 30 секунд хүлээгээд дахин оролдоно уу.'), 30000)
     socket.on('game:state', (state) => { window.clearTimeout(stateTimeout); setGame(state) })
@@ -64,6 +64,7 @@ export default function GameRoom({ room, player, onLeave }) {
     socket.on('chat:message', (message) => setMessages((current) => [...current.slice(-30), message]))
     socket.on('connect', () => setError(''))
     socket.on('connect_error', (connectError) => setError(`Өрөөтэй холбогдож чадсангүй: ${connectError.message || 'Socket холболтын алдаа'}`))
+    socket.connect()
     return () => { window.clearTimeout(stateTimeout); socket.disconnect() }
   }, [room.code])
 

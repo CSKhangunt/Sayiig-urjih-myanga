@@ -95,7 +95,6 @@ const Room = mongoose.model('Room', roomSchema)
 const httpServer = http.createServer(app)
 const io = new Server(httpServer, { cors: { origin: allowedOrigins, credentials: true }, allowRequest: (request, callback) => callback(null, !request.headers.origin || allowedOrigins.includes(request.headers.origin)), pingInterval: 25000, pingTimeout: 20000, connectTimeout: 10000 })
 const games = new Map()
-const gameConnections = new Map()
 const social = io.of('/social')
 const authentication = createAuthentication({ verifyToken, options: { secretKey: process.env.CLERK_SECRET_KEY, jwtKey: process.env.CLERK_JWT_KEY, authorizedParties: allowedOrigins }, blocked: (id) => deletion.blocked(id), findSession: (token) => GuestSession.findOne({ tokenHash: hashToken(token), expiresAt: { $gt: new Date() } }), findRoom: (code) => Room.findOne({ code }) })
 const deletion = createDeletionService({ mongoose,
@@ -352,18 +351,13 @@ app.get('/api/rooms', requireDatabase, async (request, response) => {
     .limit(100)
   const sessionHashes = candidates.flatMap((room) => room.players.map((player) => player.sessionHash))
   const activeSessions = await GuestSession.find({ tokenHash: { $in: sessionHashes }, expiresAt: { $gt: new Date() } }).select('tokenHash').lean()
-  const activeHashes = new Set(activeSessions.map((session) => session.tokenHash).filter((hash) => gameConnections.has(hash)))
-  const activeRooms = candidates.filter((room) => room.players.some((player) => activeHashes.has(player.sessionHash)))
-  const latestByHost = new Set()
-  const duplicateRoomIds = []
-  for (const room of activeRooms) {
-    if (latestByHost.has(room.hostSessionHash)) duplicateRoomIds.push(room._id)
-    else latestByHost.add(room.hostSessionHash)
-  }
-  const rooms = activeRooms.filter((room) => !duplicateRoomIds.some((id) => String(id) === String(room._id))).slice(0, 12)
-  const emptyRoomIds = candidates.filter((room) => !activeRooms.includes(room)).map((room) => room._id)
-  const staleRoomIds = [...emptyRoomIds, ...duplicateRoomIds]
-  if (staleRoomIds.length) await Room.deleteMany({ _id: { $in: staleRoomIds } })
+  const activeHashes = new Set(activeSessions.map((session) => session.tokenHash))
+  const rooms = candidates.filter((room) => room.players.some((player) =>
+    activeHashes.has(player.sessionHash) && [...io.sockets.sockets.values()].some((socket) =>
+      socket.connected && socket.data.roomCode === room.code && socket.data.sessionHash === player.sessionHash && socket.data.expiresAt > Date.now())))
+    .map((room) => ({ code: room.code, status: room.status, settings: room.settings,
+      players: room.players.map((player) => ({ displayName: player.displayName, avatar: player.avatar,
+        connected: [...io.sockets.sockets.values()].some((socket) => socket.connected && socket.data.roomCode === room.code && socket.data.sessionHash === player.sessionHash) })) }))
   return response.json({ rooms })
 })
 
@@ -463,7 +457,6 @@ io.on('connection', async (socket) => {
   expiry.unref?.()
   socket.once('disconnect', () => clearTimeout(expiry))
   const { roomCode, sessionHash } = socket.data
-  gameConnections.set(sessionHash, (gameConnections.get(sessionHash) || 0) + 1)
   const game = await getGame(roomCode)
   if (!game) return socket.disconnect(true)
   const room = await Room.findOne({ code: roomCode })
@@ -556,9 +549,6 @@ io.on('connection', async (socket) => {
     io.to(roomCode).emit('chat:message', { name: socket.data.displayName, text, at: new Date().toISOString() })
   })
   socket.on('disconnect', () => {
-    const connectionCount = (gameConnections.get(sessionHash) || 1) - 1
-    if (connectionCount > 0) gameConnections.set(sessionHash, connectionCount)
-    else gameConnections.delete(sessionHash)
     const otherConnection = [...io.sockets.sockets.values()].some((item) => item.id !== socket.id && item.data.sessionHash === sessionHash && item.data.roomCode === roomCode)
     if (otherConnection) return
     const disconnectedPlayer = game.players.find((item) => item.id === sessionHash)
@@ -667,11 +657,6 @@ async function startServer() {
 
 if (process.env.MONGODB_URI) {
   void startServer()
-} else if (false) {
-  mongoose.connect(process.env.MONGODB_URI, { maxPoolSize: 10, minPoolSize: 1, serverSelectionTimeoutMS: 10000 })
-    .catch((error) => { console.error(`MongoDB connection details: ${error?.name || 'Error'}: ${error?.message || 'unknown'} (code: ${error?.code || 'none'})`); throw error })
-    .then(async () => { await Promise.all(Object.values(mongoose.models).map((model) => model.init())); console.log('MongoDB холболт амжилттай.'); if (!process.env.VERCEL) httpServer.listen(port, () => console.log(`Тэрбумтан backend :${port}`)) })
-    .catch(() => { console.error('MongoDB холболт амжилтгүй.'); process.exitCode = 1; clearInterval(gameTimer) })
 } else {
   console.error('MONGODB_URI тохируулагдаагүй байна. .env файл үүсгэнэ үү.')
 }
